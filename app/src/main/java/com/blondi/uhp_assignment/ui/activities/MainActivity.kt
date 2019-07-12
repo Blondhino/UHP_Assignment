@@ -15,27 +15,35 @@ import android.widget.Toast
 import com.blondi.uhp_assignment.ui.base.BaseActivity
 import com.blondi.uhp_assignment.R
 import com.blondi.uhp_assignment.adapters.RecipesAdapter
+import com.blondi.uhp_assignment.models.Recipes
 import com.blondi.uhp_assignment.models.response.RecipesResponse
 import com.blondi.uhp_assignment.networking.BackendFactory
+import com.blondi.uhp_assignment.presentation.MainPresenter
 import kotlinx.android.synthetic.main.activity_main.*
 import retrofit2.Call
 import retrofit2.Response
 
-class MainActivity : BaseActivity() {
-    private val interactor = BackendFactory.getInteractor()
+class MainActivity : BaseActivity(), MainContract.View {
+
     private val adapter = RecipesAdapter()
+    private val presenter = MainPresenter(BackendFactory.getInteractor())
 
-
+    override fun onGetFailed(errorMessage: String) {
+        Toast.makeText(this,errorMessage,Toast.LENGTH_SHORT).show()
+    }
+    override fun onGetSuccessful(respone: MutableList<Recipes>?) {
+        adapter.setData(respone)
+        progressBar.visibility= View.GONE
+    }
     override fun getLayoutResourceId(): Int {
         return R.layout.activity_main
     }
-
     override fun setUpUi() {
         tryGetRecipes()
         setUpRecycler()
+        presenter.setView(this)
 
     }
-
     private fun isNetworkAvailable(): Boolean {
         val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE)
         return if (connectivityManager is ConnectivityManager) {
@@ -43,35 +51,22 @@ class MainActivity : BaseActivity() {
             networkInfo?.isConnected ?: false
         } else false
     }
-
     private fun setUpRecycler() {
         val recyclerView = findViewById<RecyclerView>(R.id.recipeRecyclerView)
         recyclerView.layoutManager = LinearLayoutManager(this, LinearLayout.VERTICAL, false)
         recyclerView.adapter = adapter
     }
-
     private fun tryGetRecipes(){
         progressBar.visibility= View.VISIBLE
     if (isNetworkAvailable())
-        interactor.getRecipes(getRecipesCallback())
+        presenter.onGetRecipes()
     else {
         Toast.makeText(this, getString(R.string.WiFi_message), Toast.LENGTH_SHORT).show()
         progressBar.visibility = View.GONE
     }
 }
 
-    private fun getRecipesCallback(): retrofit2.Callback<RecipesResponse> = object : retrofit2.Callback<RecipesResponse>{
-        override fun onFailure(call: Call<RecipesResponse>, t: Throwable) {
-            Log.e("Error","Error")
 
-        }
 
-        override fun onResponse(call: Call<RecipesResponse>, response: Response<RecipesResponse>) {
-            progressBar.visibility= View.GONE
-            adapter.setData(response.body()?.recipes)
-        }
-
-    }
-    
 
 }
